@@ -47,6 +47,10 @@ import { SnapshotRenderingHelper } from "core/Misc/snapshotRenderingHelper";
 import { GetExtensionFromUrl } from "core/Misc/urlTools";
 import { Scene } from "core/scene";
 import { registerBuiltInLoaders } from "loaders/dynamic";
+import { MeshBuilder } from "core/Meshes/meshBuilder";
+import { TransformNode } from "core/Meshes/transformNode";
+import { GridMaterial } from "materials/grid";
+import { Color3 } from "core/Maths/math.color";
 
 export type ResetFlag = "source" | "environment" | "camera" | "animation" | "post-processing" | "material-variant";
 
@@ -1740,6 +1744,55 @@ export class Viewer implements IDisposable {
         if (flags.length === 0 || flags.includes("material-variant")) {
             this.selectedMaterialVariant = this._options?.selectedMaterialVariant ?? null;
         }
+    }
+
+    public addGrid() {
+        const scene = this._scene;
+        if (!scene) return;
+        scene.clearColor = new Color4(0, 0, 0);
+
+        let xSize = 1000,
+            zSize = 1000;
+        if (this._scene.meshes.length !== 0) {
+            const boundingInfo = scene.getWorldExtends();
+            const min = boundingInfo.min;
+            const max = boundingInfo.max;
+            const boundingSize = max.subtract(min);
+            xSize = boundingSize._x * 100;
+            zSize = boundingSize._z * 100;
+        }
+
+        const gridGround = MeshBuilder.CreateGround("ground", { width: xSize, height: zSize }, scene);
+
+        const gridNode = new TransformNode("gridNode", scene);
+        gridNode.translate(new Vector3(0, -1, 0), 0.0001);
+        gridGround.parent = gridNode;
+
+        var gridMaterial = new GridMaterial("groundMaterial", scene);
+        gridMaterial.majorUnitFrequency = 5;
+        gridMaterial.minorUnitVisibility = 0.5;
+        gridMaterial.gridRatio = 1;
+        gridMaterial.opacity = 0.5;
+        gridMaterial.useMaxLine = true;
+        gridMaterial.mainColor = new Color3(0, 1, 0);
+        gridMaterial.lineColor = new Color3(1, 1, 1);
+        gridGround.material = gridMaterial;
+
+        scene.fogMode = Scene.FOGMODE_LINEAR;
+        scene.fogDensity = 1; // Adjust this value to control the fade distance
+        scene.fogColor = new Color3(1, 1, 1); // Adjust the color to match your scene
+
+        const activeCamera = scene.activeCamera as ArcRotateCamera;
+        const updateActiveCameraFog = () => {
+            const cameraPosition = activeCamera.position;
+            const targetPosition = activeCamera.target;
+            const distance = Vector3.Distance(cameraPosition, targetPosition);
+            scene.fogStart = distance;
+            scene.fogEnd = distance + 500;
+        };
+        activeCamera.onViewMatrixChangedObservable.add(() => {
+            updateActiveCameraFog();
+        });
     }
 
     /**

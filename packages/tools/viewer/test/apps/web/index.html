@@ -145,6 +145,7 @@
             <button onClick="onResumeRendering()">Resume Rendering</button>
             <button onClick="onMarkSceneMutated()">Mark Scene Mutated</button>
             <button onClick="resetModel()">Reset Model</button>
+            <button onClick="addGrid()">Add Grid</button>
             <div>
                 <span>Environment Intensity</span>
                 <input type="range" id="environmentIntensityInput" min="0" max="2" step="0.01" oninput="onEnvironmentIntensity()" />
@@ -341,6 +342,10 @@
             globalThis.resetModel = () => {
                 console.log("reset model");
                 viewerElement.viewerDetails.viewer.resetModel();
+            };
+
+            globalThis.addGrid = () => {
+                viewerElement.viewerDetails.viewer.addGrid();
             };
 
             globalThis.onEnvironmentIntensity = () => {
