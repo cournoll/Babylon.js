@@ -22,7 +22,6 @@ import type {
     ShadowLight,
     ShaderMaterial,
     ShadowGenerator,
-    // eslint-disable-next-line import/no-internal-modules
 } from "core/index";
 
 import type { MaterialVariantsController } from "loaders/glTF/2.0/Extensions/KHR_materials_variants";
@@ -1931,7 +1930,7 @@ export class Viewer implements IDisposable {
         normal.light.position = lightPosition;
         normal.light.direction = lightTargetDirection;
         (normal.light as DirectionalLight).autoUpdateExtends = false;
-        (normal.light as DirectionalLight).shadowFrustumSize = radius * 2;
+        (normal.light as DirectionalLight).shadowFrustumSize = radius * 4;
 
         for (const model of this._loadedModelsBacking) {
             // Add all root meshes to the shadow generator.
@@ -1989,6 +1988,7 @@ export class Viewer implements IDisposable {
             normalShadow.light.dispose();
             normalShadow.ground.dispose(true, true);
             this._scene.removeMesh(normalShadow.ground);
+            this._cdfGenerator?.dispose();
         }
 
         if (highShadow) {
