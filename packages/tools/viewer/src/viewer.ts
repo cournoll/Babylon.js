@@ -39,7 +39,6 @@ import { PBRMaterial } from "core/Materials/PBR/pbrMaterial";
 import { Texture } from "core/Materials/Textures/texture";
 import { Color3, Color4 } from "core/Maths/math.color";
 import { Clamp, Lerp } from "core/Maths/math.scalar.functions";
-import { Scalar } from "core/Maths/math.scalar";
 import { Matrix, Vector2, Vector3 } from "core/Maths/math.vector";
 import { Viewport } from "core/Maths/math.viewport";
 import { GetHotSpotToRef } from "core/Meshes/abstractMesh.hotSpot";
@@ -142,7 +141,7 @@ type ShadowState = {
         shouldRender: boolean;
         iblDirection: {
             iblCdfGenerator: IblCdfGenerator;
-            lightPositionFactor: number;
+            positionFactor: number;
             direction: Vector3;
         };
         refreshLightPositionDirection: Function;
@@ -843,10 +842,6 @@ export class Viewer implements IDisposable {
 
     private _shadowQuality: ShadowQuality = this._options?.shadowConfig?.quality ?? DefaultViewerOptions.shadowConfig.quality;
     private readonly _shadowState: ShadowState = {};
-
-    private _cdfGenerator: Nullable<IblCdfGenerator> = null; // used for shadow maps light direction calculation
-    private _cachedIblDirection: Nullable<Vector3> = null;
-    private _cachedShadowLightPositionFactor: number = 20;
 
     public constructor(
         private readonly _engine: AbstractEngine,
@@ -1848,7 +1843,7 @@ export class Viewer implements IDisposable {
         const size = 4096;
         const groundFactor = 20;
         const groundSize = radius * groundFactor;
-        const lightPositionFactor = radius * 3;
+        const positionFactor = radius * 3;
         const iblLightStrength = iblDirection ? Clamp(iblDirection.length(), 0.0, 1.0) : 0.5;
 
         if (!normal) {
@@ -1856,7 +1851,7 @@ export class Viewer implements IDisposable {
             light.autoUpdateExtends = false;
 
             const generator = new ShadowGenerator(size, light);
-            generator.setDarkness(Scalar.Lerp(0.8, 0.2, iblLightStrength));
+            generator.setDarkness(Lerp(0.8, 0.2, iblLightStrength));
             generator.setDarkness(Lerp(0.8, 0.2, iblLightStrength));
             generator.setTransparencyShadow(true);
             generator.filteringQuality = ShadowGenerator.QUALITY_HIGH;
@@ -1864,7 +1859,7 @@ export class Viewer implements IDisposable {
             generator.enableSoftTransparentShadow = true;
             generator.bias = radius / 1000;
             generator.useKernelBlur = true;
-            generator.blurKernel = Math.floor(Scalar.Lerp(64, 8, iblLightStrength));
+            generator.blurKernel = Math.floor(Lerp(64, 8, iblLightStrength));
             generator.blurKernel = 32;
 
             const shadowMap = generator.getShadowMap();
@@ -1890,7 +1885,7 @@ export class Viewer implements IDisposable {
                 shouldRender: true,
                 iblDirection: {
                     iblCdfGenerator: iblCdfGenerator,
-                    lightPositionFactor: lightPositionFactor,
+                    positionFactor: positionFactor,
                     direction: iblDirection,
                 },
                 refreshLightPositionDirection(reflectionRotation: number) {
@@ -1898,7 +1893,7 @@ export class Viewer implements IDisposable {
                     const rotationYMatrix = Matrix.RotationY(reflectionRotation * -1);
                     effectiveSourceDir = Vector3.TransformCoordinates(effectiveSourceDir, rotationYMatrix);
 
-                    this.light.position = effectiveSourceDir.scale(this.iblDirection.lightPositionFactor);
+                    this.light.position = effectiveSourceDir.scale(this.iblDirection.positionFactor);
                     this.light.direction = adjustLightTargetDirection(effectiveSourceDir.negate());
                 },
             });
@@ -1912,7 +1907,7 @@ export class Viewer implements IDisposable {
         }
 
         normal.iblDirection.direction = iblDirection;
-        normal.iblDirection.lightPositionFactor = lightPositionFactor;
+        normal.iblDirection.positionFactor = positionFactor;
         normal.refreshLightPositionDirection(this._reflectionsRotation);
         (normal.light as DirectionalLight).shadowFrustumSize = radius * 4;
 
@@ -1973,7 +1968,6 @@ export class Viewer implements IDisposable {
             normalShadow.ground.dispose(true, true);
             normalShadow.iblDirection.iblCdfGenerator.dispose();
             this._scene.removeMesh(normalShadow.ground);
-            this._cdfGenerator?.dispose();
         }
 
         if (highShadow) {
