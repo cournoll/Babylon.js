@@ -27,6 +27,9 @@ import type {
 
 import type { MaterialVariantsController } from "loaders/glTF/2.0/Extensions/KHR_materials_variants";
 
+// Force import of EXT_lights_area extension
+import "loaders/glTF/2.0/Extensions/EXT_lights_area";
+
 import { ArcRotateCamera, ComputeAlpha, ComputeBeta } from "core/Cameras/arcRotateCamera";
 import { Constants } from "core/Engines/constants";
 import { PointerEventTypes } from "core/Events/pointerEvents";
@@ -1569,12 +1572,14 @@ export class Viewer implements IDisposable {
 
         try {
             const assetContainer = await LoadAssetContainerAsync(source, this._scene, options);
+
             RemoveUnreferencedVerticesData(assetContainer.meshes.filter((mesh) => mesh instanceof Mesh));
             assetContainer.animationGroups.forEach((group) => {
                 group.start(true, this.animationSpeed);
                 group.pause();
             });
             assetContainer.addAllToScene();
+
             this._snapshotHelper.fixMeshes(assetContainer.meshes);
 
             let selectedAnimation = -1;

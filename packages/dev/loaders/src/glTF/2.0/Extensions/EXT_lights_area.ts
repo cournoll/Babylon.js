@@ -119,7 +119,10 @@ export class EXT_lights_area implements IGLTFLoaderExtension {
 
                 // glTF EXT_lights_area specifies lights face down -Z, but Babylon.js area lights face down +Z
                 // Create a parent transform node with 180-degree rotation around Y axis to flip the direction
+                this._loader.babylonScene._blockEntityCollection = !!this._loader._assetContainer;
                 const lightParentNode = new BabylonTransformNode(`${name}_orientation`, this._loader.babylonScene);
+                lightParentNode._parentContainer = this._loader._assetContainer;
+                this._loader.babylonScene._blockEntityCollection = false;
                 lightParentNode.rotationQuaternion = Quaternion.RotationAxis(Vector3.Up(), Math.PI);
                 lightParentNode.parent = babylonMesh;
                 babylonLight.parent = lightParentNode;
