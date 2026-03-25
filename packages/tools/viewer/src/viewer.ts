@@ -201,6 +201,7 @@ type ShadowState = {
         shouldRender: boolean;
         readonly resizeObserver: Observer<Engine>;
         voxelizationInProgress?: boolean;
+        voxelizationDirty?: boolean;
     };
 };
 
@@ -2449,9 +2450,16 @@ export class Viewer implements IDisposable {
 
     /**
      * Triggers a single IBL shadows voxelization pass.
+     * If a voxelization is already in progress, a dirty flag is set and a new pass
+     * will automatically run once the current one completes, ensuring the final state
+     * is always rendered regardless of how many requests arrive in the meantime.
      */
     private _triggerIblShadowsVoxelization() {
-        if (this._shadowState.high && !this._shadowState.high.voxelizationInProgress) {
+        if (this._shadowState.high) {
+            if (this._shadowState.high.voxelizationInProgress) {
+                this._shadowState.high.voxelizationDirty = true;
+                return;
+            }
             this._shadowState.high.voxelizationInProgress = true;
             this._shadowState.high.pipeline.updateSceneBounds();
             this._shadowState.high.pipeline.updateVoxelization();
@@ -2459,6 +2467,11 @@ export class Viewer implements IDisposable {
                 if (this._shadowState.high) {
                     this._shadowState.high.voxelizationInProgress = false;
                     this._shadowState.high.pipeline.resetAccumulation();
+                    if (this._shadowState.high.voxelizationDirty) {
+                        this._shadowState.high.voxelizationDirty = false;
+                        this._triggerIblShadowsVoxelization();
+                        return;
+                    }
                 }
                 this._startIblShadowsRenderTime();
             });
@@ -2472,11 +2485,27 @@ export class Viewer implements IDisposable {
         if (this._shadowState.high && !this._iblShadowsAnimationObserver) {
             let frame = 0;
             this._iblShadowsAnimationObserver = this._scene.onAfterAnimationsObservable.add(() => {
-                if (frame++ % 2 === 0 && this._shadowState.high) {
-                    this._shadowState.high.pipeline.updateVoxelization();
-                    this._shadowState.high.pipeline.resetAccumulation();
-                    this._startIblShadowsRenderTime();
+                const highState = this._shadowState.high;
+                if (!highState) {
+                    return;
                 }
+                if (frame++ % 2 !== 0) {
+                    return;
+                }
+                if (highState.voxelizationInProgress) {
+                    return;
+                }
+                highState.voxelizationInProgress = true;
+                highState.pipeline.updateVoxelization();
+                highState.pipeline.onVoxelizationCompleteObservable.addOnce(() => {
+                    // Ensure the high shadow state is still valid and matches the one we started with
+                    if (!this._shadowState.high || this._shadowState.high !== highState) {
+                        return;
+                    }
+                    highState.voxelizationInProgress = false;
+                    highState.pipeline.resetAccumulation();
+                    this._startIblShadowsRenderTime();
+                });
             });
         }
     }
